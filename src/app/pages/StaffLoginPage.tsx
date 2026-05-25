@@ -1,26 +1,55 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Eye, EyeOff } from "lucide-react";
+import { supabase } from "../utils/supabase";
 
 export function StaffLoginPage() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    if (username.trim() === "" || password.trim() === "") {
+    if (email.trim() === "" || password.trim() === "") {
       setError("Please fill in all fields");
       return;
     }
 
-    localStorage.setItem("userType", "staff");
-    localStorage.setItem("staffUsername", username);
-    localStorage.setItem("isLoggedIn", "true");
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+
+    if (signInError) {
+      setError(signInError.message);
+      return;
+    }
+
+    if (!data.user) {
+      setError("Unable to sign in. No user returned.");
+      return;
+    }
+
+    const { data: staffProfile, error: staffError } = await supabase
+      .from("staff")
+      .select("username")
+      .eq("staff_id", data.user.id)
+      .single();
+
+    if (staffError) {
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) {
+        console.error("Failed to sign out after missing staff profile.", signOutError);
+      }
+      setError("Staff profile not found for this account.");
+      return;
+    }
+
+    localStorage.setItem("staffName", staffProfile.username);
     navigate("/staff-pos");
   };
 
@@ -41,19 +70,19 @@ export function StaffLoginPage() {
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-[#FFFDF1] mb-2">
-                Username
+              <label htmlFor="email" className="block text-sm font-medium text-[#FFFDF1] mb-2">
+                Email
               </label>
               <input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl bg-[#1B211A]/30 border border-[#FFFDF1]/20 text-[#FFFDF1] placeholder-[#EBD5AB]/50 focus:outline-none focus:ring-2 focus:ring-[#FFFDF1]/50 focus:border-transparent transition"
                 style={{
                   boxShadow: 'inset 0 2px 8px rgba(0, 0, 0, 0.3)',
                 }}
-                placeholder="Enter your username"
+                placeholder="Enter your email"
                 required
               />
             </div>

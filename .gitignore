@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+
+# local env files
+.env
+.env.*
+!.sample.env
+
+# misc
+.DS_Store
+*.log
+
+# Vite cache
+.vite/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+
