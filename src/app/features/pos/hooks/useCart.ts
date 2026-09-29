@@ -5,13 +5,14 @@ export function useCart() {
   const [cart, setCart] = useState<CartItem[]>([]);
 
   const addToCart = (product: Product) => {
+    const availableStock = product.stockQuantity ?? 0;
     setCart((current) => {
       const existingItem = current.find((item) => item.id === product.id);
+      const currentQuantity = existingItem?.quantity ?? 0;
+      if (currentQuantity >= availableStock) return current;
       if (existingItem) {
         return current.map((item) =>
-          item.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item,
+          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
         );
       }
       return [...current, { ...product, quantity: 1 }];
@@ -24,11 +25,13 @@ export function useCart() {
         .map((item) => {
           if (item.id === id) {
             const newQuantity = item.quantity + delta;
+            const availableStock = item.stockQuantity ?? Infinity;
+            if (newQuantity > availableStock) return item;
             return newQuantity > 0 ? { ...item, quantity: newQuantity } : item;
           }
           return item;
         })
-        .filter((item) => item.quantity > 0),
+        .filter((item) => item.quantity > 0)
     );
   };
 
@@ -42,13 +45,10 @@ export function useCart() {
 
   const total = useMemo(
     () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
-    [cart],
+    [cart]
   );
 
-  const itemCount = useMemo(
-    () => cart.reduce((sum, item) => sum + item.quantity, 0),
-    [cart],
-  );
+  const itemCount = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart]);
 
   return {
     cart,

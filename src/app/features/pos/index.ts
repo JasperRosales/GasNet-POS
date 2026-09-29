@@ -1,2 +1,11 @@
 export type { ActiveTab, CartItem, Product, Transaction } from "./types";
-export { updateBranchProductPrice } from "./services/posService";
+export {
+  createSale,
+  fetchBranchProducts,
+  fetchBranchStock,
+  fetchStaffProfile,
+  fetchTransactions,
+  loginStaff,
+  logoutStaff,
+  updateBranchProductPrice,
+} from "./services/posService";

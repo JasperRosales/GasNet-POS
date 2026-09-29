@@ -36,9 +36,7 @@ export function ReceiptModal({ receiptData, onClose }: ReceiptModalProps) {
         <div className="space-y-4 mb-6">
           <div className="text-center border-b border-[#628141]/20 pb-4">
             <div className="text-sm text-[#628141]">Transaction ID</div>
-            <div className="font-mono font-bold text-[#1B211A]">
-              {receiptData.transactionId}
-            </div>
+            <div className="font-mono font-bold text-[#1B211A]">{receiptData.transactionId}</div>
             <div className="text-sm text-[#628141] mt-2">{receiptData.date}</div>
           </div>
 

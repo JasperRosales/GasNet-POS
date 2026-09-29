@@ -22,7 +22,7 @@ export function useBranchProducts(branchId: number | null) {
       setLoading(true);
       setError("");
 
-      const { data, error: pricingError } = await fetchBranchProducts(branchId);
+      const { data, error: pricingError } = await fetchBranchProducts();
 
       if (!isActive) {
         return;

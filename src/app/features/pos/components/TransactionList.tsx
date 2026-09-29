@@ -3,9 +3,17 @@ import type { Transaction } from "../types";
 
 interface TransactionListProps {
   transactions: Transaction[];
+  loading?: boolean;
+  error?: string;
+  onRetry?: () => void;
 }
 
-export function TransactionList({ transactions }: TransactionListProps) {
+export function TransactionList({
+  transactions,
+  loading = false,
+  error = "",
+  onRetry,
+}: TransactionListProps) {
   return (
     <div className="max-w-7xl mx-auto">
       <div
@@ -19,7 +27,22 @@ export function TransactionList({ transactions }: TransactionListProps) {
         <div className="p-6">
           <h2 className="text-2xl font-bold text-[#1B211A] mb-4">Transaction History</h2>
 
-          {transactions.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-12 text-[#628141]/70">Loading transactions...</div>
+          ) : error ? (
+            <div className="text-center py-12 text-red-500" role="alert">
+              <p>{error}</p>
+              {onRetry && (
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  className="mt-4 px-4 py-2 rounded-lg border border-[#628141]/30 text-[#628141] hover:bg-[#628141]/10"
+                >
+                  Try again
+                </button>
+              )}
+            </div>
+          ) : transactions.length === 0 ? (
             <div className="text-center py-12 text-[#628141]/50">
               <Receipt size={48} className="mx-auto mb-2 opacity-50" />
               <p>No transactions yet</p>
@@ -67,7 +90,7 @@ export function TransactionList({ transactions }: TransactionListProps) {
                       </td>
                       <td className="px-4 py-3 text-[#1B211A] text-sm">
                         {txn.items.map((item, i) => (
-                          <div key={i}>
+                          <div key={`${txn.transactionId}-${item.id}-${i}`}>
                             {item.name} x{item.quantity}
                           </div>
                         ))}

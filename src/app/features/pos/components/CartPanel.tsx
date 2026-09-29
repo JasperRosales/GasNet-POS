@@ -7,7 +7,9 @@ interface CartPanelProps {
   total: number;
   onUpdateQuantity: (id: number, delta: number) => void;
   onRemoveFromCart: (id: number) => void;
-  onCheckout: () => void;
+  onCheckout: () => void | Promise<void>;
+  checkoutPending?: boolean;
+  checkoutError?: string;
 }
 
 export function CartPanel({
@@ -17,6 +19,8 @@ export function CartPanel({
   onUpdateQuantity,
   onRemoveFromCart,
   onCheckout,
+  checkoutPending = false,
+  checkoutError = "",
 }: CartPanelProps) {
   return (
     <div className="lg:col-span-1">
@@ -104,16 +108,25 @@ export function CartPanel({
               </div>
             </div>
 
+            {checkoutError && (
+              <div className="mb-4 text-sm text-red-500" role="alert">
+                {checkoutError}
+              </div>
+            )}
+
             <button
+              type="button"
               onClick={onCheckout}
-              className="w-full text-[#FFFDF1] font-bold py-4 rounded-xl transition"
+              disabled={checkoutPending}
+              aria-busy={checkoutPending}
+              className="w-full text-[#FFFDF1] font-bold py-4 rounded-xl transition disabled:cursor-not-allowed disabled:opacity-60"
               style={{
                 background: "linear-gradient(135deg, #628141 0%, #8BAE66 100%)",
                 boxShadow:
                   "0 6px 20px rgba(98, 129, 65, 0.4), inset 0 2px 6px rgba(255, 255, 255, 0.2), inset 0 -2px 6px rgba(0, 0, 0, 0.15)",
               }}
             >
-              Complete Transaction
+              {checkoutPending ? "Processing..." : "Complete Transaction"}
             </button>
           </>
         )}

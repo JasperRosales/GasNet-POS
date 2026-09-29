@@ -1,77 +1,53 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../../../utils/supabase";
+import { supabase } from "../../../services/supabase/client";
+import { normalizeSupabaseError, isSupabaseAuthError } from "../../../services/supabase/errors";
 import { fetchStaffProfile } from "../services/posService";
 
 type StaffSessionStatus = "loading" | "unauthorized" | "ready" | "error";
 
 export function useStaffSession() {
-  const [staffName, setStaffName] = useState(() => localStorage.getItem("staffName") ?? "");
+  const [staffName, setStaffName] = useState("");
   const [branchId, setBranchId] = useState<number | null>(null);
   const [status, setStatus] = useState<StaffSessionStatus>("loading");
   const [error, setError] = useState("");
 
   useEffect(() => {
-    let isActive = true;
-
-    const loadStaff = async () => {
+    let active = true;
+    const load = async () => {
       setStatus("loading");
-      setError("");
-
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-      if (!isActive) {
-        return;
-      }
-
-      if (sessionError) {
-        console.error("Failed to read Supabase session.", sessionError);
-        setStatus("error");
-        setError("Unable to load your session.");
-        return;
-      }
-
-      if (!session?.user) {
+      const session = await supabase.auth.getSession();
+      if (!active) return;
+      if (!session.data.session) {
         setStatus("unauthorized");
         return;
       }
-
-      const cachedName = localStorage.getItem("staffName") ?? "";
-      const fallbackName = cachedName || session.user.email || "Staff";
-      if (!cachedName) {
-        setStaffName(fallbackName);
-      }
-
-      const { data: staffProfile, error: staffError } = await fetchStaffProfile(session.user.id);
-
-      if (!isActive) {
+      const profile = await fetchStaffProfile();
+      if (!active) return;
+      if (profile.error || !profile.data) {
+        if (profile.error && isSupabaseAuthError(profile.error)) setStatus("unauthorized");
+        else {
+          setStatus("error");
+          setError(normalizeSupabaseError(profile.error).message);
+        }
         return;
       }
-
-      if (staffError || !staffProfile) {
-        console.error("Failed to load staff profile.", staffError);
-        setStaffName(fallbackName);
-        setStatus("error");
-        setError("Unable to load staff profile.");
-        return;
-      }
-
-      setStaffName(staffProfile.username);
-      localStorage.setItem("staffName", staffProfile.username);
-      setBranchId(staffProfile.branchId);
+      setStaffName(profile.data.username);
+      setBranchId(profile.data.branchId);
       setStatus("ready");
     };
-
-    loadStaff();
-
+    void load();
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        setStaffName("");
+        setBranchId(null);
+        setStatus("unauthorized");
+      }
+    });
     return () => {
-      isActive = false;
+      active = false;
+      data.subscription.unsubscribe();
     };
   }, []);
 
-  return {
-    staffName,
-    branchId,
-    status,
-    error,
-  };
+  return { staffName, branchId, status, error };
 }

@@ -1,70 +1,34 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router";
-import { supabase } from "../utils/supabase";
+import { supabase } from "../services/supabase/client";
+import { fetchStaffProfile } from "../features/pos/services/posService";
 
-interface ProtectedRouteProps {
+export function ProtectedRoute({
+  children,
+  requiredUserType,
+}: {
   children: React.ReactNode;
   requiredUserType: "admin" | "staff";
-}
-
-export function ProtectedRoute({ children, requiredUserType }: ProtectedRouteProps) {
-  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
-
+}) {
+  const [authorized, setAuthorized] = useState<boolean | null>(null);
   useEffect(() => {
-    let isActive = true;
-
-    const checkAccess = async () => {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-      if (sessionError) {
-        console.error("Failed to read Supabase session.", sessionError);
-        if (isActive) {
-          setIsAuthorized(false);
-        }
+    let active = true;
+    void (async () => {
+      const session = await supabase.auth.getSession();
+      if (!active) return;
+      if (!session.data.session) {
+        setAuthorized(false);
         return;
       }
-
-      if (!session?.user) {
-        if (isActive) {
-          setIsAuthorized(false);
-        }
-        return;
-      }
-
-      const { data: staffProfile, error: staffError } = await supabase
-        .from("staff")
-        .select("role")
-        .eq("staff_id", session.user.id)
-        .single();
-
-      if (staffError) {
-        console.error("Failed to load staff profile.", staffError);
-        if (isActive) {
-          setIsAuthorized(false);
-        }
-        return;
-      }
-
-      const normalizedRole = staffProfile?.role?.toLowerCase();
-      if (isActive) {
-        setIsAuthorized(normalizedRole === requiredUserType);
-      }
-    };
-
-    checkAccess();
-
+      const profile = await fetchStaffProfile();
+      if (active)
+        setAuthorized(!profile.error && profile.data?.role?.toLowerCase() === requiredUserType);
+    })();
     return () => {
-      isActive = false;
+      active = false;
     };
   }, [requiredUserType]);
-
-  if (isAuthorized === null) {
-    return null;
-  }
-
-  if (!isAuthorized) {
-    return <Navigate to="/" replace />;
-  }
-
+  if (authorized === null) return null;
+  if (!authorized) return <Navigate to="/" replace />;
   return <>{children}</>;
 }

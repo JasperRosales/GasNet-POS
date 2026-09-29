@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { supabase } from "../utils/supabase";
+import { createIdempotencyKey } from "../services/supabase/idempotency";
+import { normalizeSupabaseError } from "../services/supabase/errors";
 import { POSHeader } from "../features/pos/components/POSHeader";
 import { POSTabs } from "../features/pos/components/POSTabs";
 import { TransactionDetails } from "../features/pos/components/TransactionDetails";
@@ -14,19 +15,35 @@ import { useBranchProducts } from "../features/pos/hooks/useBranchProducts";
 import { useCart } from "../features/pos/hooks/useCart";
 import { useTransactions } from "../features/pos/hooks/useTransactions";
 import type { ActiveTab, Transaction } from "../features/pos";
-import { updateBranchProductPrice } from "../features/pos";
+import { createSale, logoutStaff, updateBranchProductPrice } from "../features/pos";
 
 export function StaffPOSPage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("pos");
   const [customerName, setCustomerName] = useState("");
-  const [transactionType, setTransactionType] = useState<"Instore" | "Commercial">("Instore");
+  const [transactionType, setTransactionType] = useState<"Instore" | "Commercial" | "Delivery">(
+    "Instore"
+  );
   const [receiptData, setReceiptData] = useState<Transaction | null>(null);
+  const [checkoutPending, setCheckoutPending] = useState(false);
+  const [checkoutError, setCheckoutError] = useState("");
+  const idempotencyRef = useRef<{ fingerprint: string; key: string } | null>(null);
   const navigate = useNavigate();
   const { staffName, branchId, status: staffStatus, error: staffError } = useStaffSession();
-  const { products, loading: branchLoading, error: branchError, reload: reloadProducts } =
-    useBranchProducts(branchId);
-  const { cart, addToCart, updateQuantity, removeFromCart, clearCart, total, itemCount } = useCart();
-  const { transactions, addTransaction } = useTransactions();
+  const {
+    products,
+    loading: branchLoading,
+    error: branchError,
+    reload: reloadProducts,
+  } = useBranchProducts(branchId);
+  const { cart, addToCart, updateQuantity, removeFromCart, clearCart, total, itemCount } =
+    useCart();
+  const {
+    transactions,
+    loading: transactionsLoading,
+    error: transactionsError,
+    addTransaction,
+    reload: reloadTransactions,
+  } = useTransactions();
 
   useEffect(() => {
     if (staffStatus === "unauthorized") {
@@ -34,40 +51,73 @@ export function StaffPOSPage() {
     }
   }, [staffStatus, navigate]);
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
+    if (checkoutPending) {
+      return;
+    }
+
     if (cart.length === 0) {
-      alert("Cart is empty!");
+      setCheckoutError("Cart is empty!");
       return;
     }
 
-    if (!customerName.trim()) {
-      alert("Please enter customer name!");
+    const customer = customerName.trim();
+    if (!customer) {
+      setCheckoutError("Please enter customer name!");
       return;
     }
 
-    const newTransaction: Transaction = {
-      transactionId: `TXN-${Date.now()}`,
-      date: new Date().toLocaleString(),
-      staff: staffName,
-      customer: customerName,
-      type: transactionType,
-      items: [...cart],
-      total,
-    };
+    const fingerprint = JSON.stringify({
+      customer,
+      transactionType,
+      items: cart.map((item) => ({ productId: item.id, quantity: item.quantity })),
+    });
+    if (!idempotencyRef.current || idempotencyRef.current.fingerprint !== fingerprint) {
+      idempotencyRef.current = {
+        fingerprint,
+        key: createIdempotencyKey(),
+      };
+    }
 
-    addTransaction(newTransaction);
-    setReceiptData(newTransaction);
-    clearCart();
-    setCustomerName("");
+    setCheckoutPending(true);
+    setCheckoutError("");
+
+    try {
+      // The cart is intentionally left intact until the server has accepted
+      // the sale. A retry with the same submission reuses its idempotency key.
+      const transaction = await createSale({
+        idempotencyKey: idempotencyRef.current.key,
+        customer,
+        transactionType,
+        items: cart.map((item) => ({
+          productId: item.id,
+          quantity: item.quantity,
+        })),
+      });
+
+      addTransaction(transaction);
+      setReceiptData(transaction);
+      clearCart();
+      setCustomerName("");
+      idempotencyRef.current = null;
+    } catch (checkoutError) {
+      const normalized = normalizeSupabaseError(checkoutError);
+      console.error("Unable to complete the sale.", normalized);
+      setCheckoutError(normalized.message || "Unable to complete the transaction.");
+    } finally {
+      setCheckoutPending(false);
+    }
   };
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error("Failed to sign out.", error);
+    try {
+      await logoutStaff();
+    } catch (logoutError) {
+      // logoutStaff clears the local session even when the API is unavailable.
+      console.error("Failed to log out from the GasNet API.", normalizeSupabaseError(logoutError));
+    } finally {
+      navigate("/");
     }
-    localStorage.removeItem("staffName");
-    navigate("/");
   };
 
   const closeReceipt = () => {
@@ -79,7 +129,7 @@ export function StaffPOSPage() {
       return "Branch not available.";
     }
 
-    const { error } = await updateBranchProductPrice(branchId, productId, price);
+    const { error } = await updateBranchProductPrice(productId, price);
 
     if (error) {
       console.error("Failed to update pricing.", error);
@@ -123,10 +173,17 @@ export function StaffPOSPage() {
             onUpdateQuantity={updateQuantity}
             onRemoveFromCart={removeFromCart}
             onCheckout={handleCheckout}
+            checkoutPending={checkoutPending}
+            checkoutError={checkoutError}
           />
         </div>
       ) : activeTab === "transactions" ? (
-        <TransactionList transactions={transactions} />
+        <TransactionList
+          transactions={transactions}
+          loading={transactionsLoading}
+          error={transactionsError}
+          onRetry={reloadTransactions}
+        />
       ) : (
         <PriceEditor
           products={products}

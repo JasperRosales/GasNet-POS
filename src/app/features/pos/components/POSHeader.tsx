@@ -17,17 +17,14 @@ export function POSHeader({ staffName, onLogout }: POSHeaderProps) {
         }}
       >
         <div>
-          <h1 className="text-2xl font-bold text-[#FFFDF1] tracking-wider">
-            CJG TRADING - POS
-          </h1>
+          <h1 className="text-2xl font-bold text-[#FFFDF1] tracking-wider">CJG TRADING - POS</h1>
           <p className="text-[#EBD5AB] text-sm">Staff: {staffName}</p>
         </div>
         <button
           onClick={onLogout}
           className="flex items-center gap-2 bg-[#1B211A] hover:bg-[#1B211A]/80 text-[#FFFDF1] px-4 py-2 rounded-lg transition"
           style={{
-            boxShadow:
-              "0 4px 12px rgba(0, 0, 0, 0.3), inset 0 1px 3px rgba(255, 255, 255, 0.1)",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3), inset 0 1px 3px rgba(255, 255, 255, 0.1)",
           }}
         >
           <LogOut size={18} />

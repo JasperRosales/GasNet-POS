@@ -1,77 +1,32 @@
-import { supabase } from "../../../utils/supabase";
-import type { Product } from "../types";
+import { StaffAuthService } from "./authService";
+import { ProductCatalogService } from "./productService";
+import { SaleService } from "./saleService";
+import { StockService } from "./stockService";
+import { TransactionHistoryService } from "./transactionService";
+import type { StaffProfile, SaleRequest } from "./types";
 
-export interface StaffProfile {
-  username: string;
-  branchId: number;
-}
+const authService = new StaffAuthService();
+const productService = new ProductCatalogService(authService);
+const stockService = new StockService(authService);
+const transactionService = new TransactionHistoryService();
+const saleService = new SaleService(authService, productService, stockService);
 
-export async function fetchStaffProfile(staffId: string) {
-  const { data, error } = await supabase
-    .from("staff")
-    .select("username, branch_id")
-    .eq("staff_id", staffId)
-    .single();
+export const posService = {
+  auth: authService,
+  products: productService,
+  stock: stockService,
+  transactions: transactionService,
+  sales: saleService,
+};
 
-  if (error || !data) {
-    return { data: null, error };
-  }
+export const loginStaff = authService.login.bind(authService);
+export const logoutStaff = authService.logout.bind(authService);
+export const fetchStaffProfile = authService.getProfile.bind(authService);
+export const fetchBranchProducts = productService.getBranchProducts.bind(productService);
+export const updateBranchProductPrice = productService.updatePrice.bind(productService);
+export const fetchBranchStock = stockService.getBranchStock.bind(stockService);
+export const fetchTransactions = transactionService.getTransactions.bind(transactionService);
+export const createSale = saleService.createSale.bind(saleService);
 
-  const { username, branch_id: branchId } = data;
-  if (typeof username !== "string" || typeof branchId !== "number") {
-    return { data: null, error: new Error("Invalid staff profile response.") };
-  }
-
-  return { data: { username, branchId }, error: null };
-}
-
-export async function fetchBranchProducts(branchId: number) {
-  const { data, error } = await supabase
-    .from("branch_product_prices")
-    .select("price, product:products(product_id, product_name, weight_kg, active)")
-    .eq("branch_id", branchId);
-
-  if (error || !data) {
-    return { data: [], error };
-  }
-
-  const rows = Array.isArray(data) ? data : [];
-  const mappedProducts = rows.flatMap((row) => {
-    if (!row?.product || row.product.active === false) {
-      return [];
-    }
-
-    const { product_id: productId, product_name: productName, weight_kg: weightKg } = row.product;
-
-    if (typeof productId !== "number" || typeof productName !== "string" || typeof weightKg !== "number") {
-      return [];
-    }
-
-    const price = typeof row.price === "number" ? row.price : Number(row.price);
-    if (Number.isNaN(price)) {
-      return [];
-    }
-
-    const product: Product = {
-      id: productId,
-      name: productName,
-      price,
-      weight: `${weightKg}kg`,
-    };
-
-    return [product];
-  });
-
-  return { data: mappedProducts, error: null };
-}
-
-export async function updateBranchProductPrice(branchId: number, productId: number, price: number) {
-  const { error } = await supabase
-    .from("branch_product_prices")
-    .upsert(
-      { branch_id: branchId, product_id: productId, price },
-      { onConflict: "branch_id,product_id" },
-    );
-
-  return { error };
-}
+export type { StaffProfile, SaleRequest } from "./types";
+export { adaptProducts, adaptTransactions } from "./adapters";

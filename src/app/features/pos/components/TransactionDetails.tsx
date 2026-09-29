@@ -3,8 +3,8 @@ import { Users } from "lucide-react";
 interface TransactionDetailsProps {
   customerName: string;
   onCustomerNameChange: (value: string) => void;
-  transactionType: "Instore" | "Commercial";
-  onTransactionTypeChange: (value: "Instore" | "Commercial") => void;
+  transactionType: "Instore" | "Commercial" | "Delivery";
+  onTransactionTypeChange: (value: "Instore" | "Commercial" | "Delivery") => void;
 }
 
 export function TransactionDetails({
@@ -61,6 +61,7 @@ export function TransactionDetails({
             >
               Instore
             </button>
+            <button onClick={() => onTransactionTypeChange("Delivery")}>Delivery</button>
             <button
               onClick={() => onTransactionTypeChange("Commercial")}
               className={`flex-1 px-4 py-2 rounded-xl transition ${

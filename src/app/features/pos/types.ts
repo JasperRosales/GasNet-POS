@@ -3,6 +3,7 @@ export interface Product {
   name: string;
   price: number;
   weight: string;
+  stockQuantity?: number;
 }
 
 export type ActiveTab = "pos" | "transactions" | "pricing";
@@ -16,7 +17,7 @@ export interface Transaction {
   date: string;
   staff: string;
   customer: string;
-  type: "Instore" | "Commercial";
+  type: "Instore" | "Commercial" | "Delivery";
   items: CartItem[];
   total: number;
 }
