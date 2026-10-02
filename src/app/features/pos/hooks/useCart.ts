@@ -35,6 +35,32 @@ export function useCart() {
     );
   };
 
+  const setCustomPrice = (id: number, customPrice: number | null) => {
+    setCart((current) =>
+      current.map((item) => {
+        if (item.id !== id) return item;
+        if (customPrice === null) {
+          const { customPrice: _customPrice, ...rest } = item;
+          return rest;
+        }
+        return { ...item, customPrice };
+      })
+    );
+  };
+
+  const setTrackingNo = (id: number, trackingNo: string | null) => {
+    setCart((current) =>
+      current.map((item) => {
+        if (item.id !== id) return item;
+        if (trackingNo === null || trackingNo.trim() === "") {
+          const { trackingNo: _trackingNo, ...rest } = item;
+          return rest;
+        }
+        return { ...item, trackingNo: trackingNo.trim() };
+      })
+    );
+  };
+
   const removeFromCart = (id: number) => {
     setCart((current) => current.filter((item) => item.id !== id));
   };
@@ -44,7 +70,11 @@ export function useCart() {
   };
 
   const total = useMemo(
-    () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    () =>
+      cart.reduce(
+        (sum, item) => sum + (item.customPrice ?? item.price) * item.quantity,
+        0
+      ),
     [cart]
   );
 
@@ -54,6 +84,8 @@ export function useCart() {
     cart,
     addToCart,
     updateQuantity,
+    setCustomPrice,
+    setTrackingNo,
     removeFromCart,
     clearCart,
     total,

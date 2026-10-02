@@ -2,6 +2,13 @@
 
 Point-of-Sale system for CJG TRADING LPG cylinder distribution. React + TypeScript + Vite + Supabase.
 
+> **Note:** The app will not work unless the environment API keys are set. Create a local env file with:
+>
+> ```env
+> VITE_SUPABASE_URL=https://<project>.supabase.co
+> VITE_SUPABASE_PUBLISHABLE_KEY=<publishable-key>
+> ```
+
 ## Table of Contents
 
 | Document | Description |

@@ -84,5 +84,68 @@ export class StockService implements IStockService {
         console.error("Failed to decrement stock after sale.", stockError);
       }
     }
+
+    await this.notifyLowStock(staff.branchId, productIds);
+  }
+
+  private async notifyLowStock(branchId: number, productIds: number[]): Promise<void> {
+    try {
+      const stockResult = await supabase
+        .from("branch_stock")
+        .select("product_id, quantity, reorder_level")
+        .eq("branch_id", branchId)
+        .in("product_id", productIds);
+      if (stockResult.error || !stockResult.data?.length) return;
+
+      const lowStockRows = stockResult.data.filter((row) => {
+        const item = record(row);
+        return number(item.quantity) <= number(item.reorder_level);
+      });
+      if (lowStockRows.length === 0) return;
+
+      const details = await supabase
+        .from("products")
+        .select("product_id, product_name")
+        .in(
+          "product_id",
+          lowStockRows.map((row) => number(record(row).product_id))
+        );
+      if (details.error) return;
+
+      const nameByProduct = new Map(
+        (details.data ?? []).map((row) => {
+          const item = record(row);
+          return [number(item.product_id), String(item.product_name ?? "Unknown product")] as const;
+        })
+      );
+
+      for (const row of lowStockRows) {
+        const item = record(row);
+        const productName = nameByProduct.get(number(item.product_id)) ?? "Unknown product";
+        const title = `Low stock: ${productName}`;
+        const message = `${productName} is at ${number(item.quantity)} unit(s), at or below the reorder level of ${number(item.reorder_level)}.`;
+
+        const existing = await supabase
+          .from("notifications")
+          .select("notification_id")
+          .eq("branch_id", branchId)
+          .eq("title", title)
+          .eq("is_read", false)
+          .limit(1);
+        if (existing.error || (existing.data?.length ?? 0) > 0) continue;
+
+        const { error: insertError } = await supabase.from("notifications").insert({
+          branch_id: branchId,
+          title,
+          message,
+          notification_type: "low_stock",
+        });
+        if (insertError) {
+          console.error("Failed to insert low-stock notification.", insertError);
+        }
+      }
+    } catch (caught) {
+      console.error("Failed to check low-stock levels.", caught);
+    }
   }
 }

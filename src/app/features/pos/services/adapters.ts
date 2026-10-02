@@ -35,15 +35,29 @@ export function adaptTransaction(
   submittedItems?: CartItem[]
 ): Transaction {
   const row = record(value);
-  const items = submittedItems ?? (Array.isArray(row.items) ? row.items : []);
+  const items =
+    submittedItems ??
+    (Array.isArray(row.sales_transaction_items)
+      ? row.sales_transaction_items
+      : Array.isArray(row.items)
+        ? row.items
+        : []);
   const cartItems: CartItem[] = items.map((item) => {
     const source = record(item);
+    const product = Array.isArray(source.products)
+      ? record(source.products[0])
+      : record(source.products);
+    const name = source.product_name ?? source.name ?? product.product_name;
     return {
       id: number(source.product_id ?? source.id),
-      name: text(source.product_name ?? source.name),
-      price: number(source.unit_price ?? source.price),
-      weight: `${text(source.weight_kg ?? source.weight)}kg`,
+      name: text(name),
+      price: number(source.unit_price_at_sale ?? source.unit_price ?? source.price),
+      weight:
+        source.weight_kg != null || product.weight_kg != null
+          ? `${text(source.weight_kg ?? product.weight_kg)}kg`
+          : text(source.weight) || '',
       quantity: number(source.quantity),
+      trackingNo: source.tracking_no != null ? text(source.tracking_no) : undefined,
     };
   });
   return {
@@ -51,6 +65,7 @@ export function adaptTransaction(
     date: text(row.transaction_date ?? row.created_at),
     staff: text(record(row.staff).username ?? row.staff_username),
     customer: text(row.guest_name ?? row.customer) || "Guest",
+    customerPhone: row.guest_phone ? text(row.guest_phone) : undefined,
     type:
       text(row.transaction_type).toLowerCase() === "commercial"
         ? "Commercial"
@@ -63,5 +78,5 @@ export function adaptTransaction(
 }
 
 export function adaptTransactions(value: unknown): Transaction[] {
-  return Array.isArray(value) ? value.map(adaptTransaction) : [];
+  return Array.isArray(value) ? value.map((item, index) => adaptTransaction(item, index)) : [];
 }

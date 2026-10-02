@@ -6,6 +6,8 @@ interface CartPanelProps {
   itemCount: number;
   total: number;
   onUpdateQuantity: (id: number, delta: number) => void;
+  onSetCustomPrice?: (id: number, customPrice: number | null) => void;
+  onSetTrackingNo?: (id: number, trackingNo: string | null) => void;
   onRemoveFromCart: (id: number) => void;
   onCheckout: () => void | Promise<void>;
   checkoutPending?: boolean;
@@ -17,6 +19,8 @@ export function CartPanel({
   itemCount,
   total,
   onUpdateQuantity,
+  onSetCustomPrice,
+  onSetTrackingNo,
   onRemoveFromCart,
   onCheckout,
   checkoutPending = false,
@@ -66,7 +70,59 @@ export function CartPanel({
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex-1">
                       <div className="font-semibold text-[#1B211A]">{item.name}</div>
-                      <div className="text-sm text-[#628141]">₱{item.price.toFixed(2)}</div>
+                      <div className="text-sm text-[#628141]">
+                        ₱{(item.customPrice ?? item.price).toFixed(2)}
+                        {item.customPrice !== undefined && (
+                          <span className="ml-1 text-xs text-[#628141]/70 line-through">
+                            ₱{item.price.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+                      {onSetCustomPrice && (
+                        <div className="mt-1 flex items-center gap-1">
+                          <span className="text-xs text-[#628141]">₱</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            placeholder="Custom price"
+                            value={item.customPrice !== undefined ? String(item.customPrice) : ""}
+                            onChange={(event) => {
+                              const raw = event.target.value;
+                              if (raw.trim() === "") {
+                                onSetCustomPrice(item.id, null);
+                                return;
+                              }
+                              const value = Number(raw);
+                              if (!Number.isNaN(value) && value >= 0) {
+                                onSetCustomPrice(item.id, Math.round(value));
+                              }
+                            }}
+                            className="w-24 px-2 py-1 text-xs rounded-md bg-white border border-[#628141]/20 text-[#1B211A] focus:outline-none focus:ring-1 focus:ring-[#628141]/40"
+                          />
+                          {item.customPrice !== undefined && (
+                            <button
+                              type="button"
+                              onClick={() => onSetCustomPrice(item.id, null)}
+                              className="text-xs text-[#628141] underline"
+                            >
+                              Reset
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      {onSetTrackingNo && (
+                        <div className="mt-1 flex items-center gap-1">
+                          <span className="text-xs text-[#628141]">TN</span>
+                          <input
+                            type="text"
+                            placeholder="Tracking no. (per product)"
+                            value={item.trackingNo ?? ""}
+                            onChange={(event) => onSetTrackingNo(item.id, event.target.value)}
+                            className="w-44 px-2 py-1 text-xs rounded-md bg-white border border-[#628141]/20 text-[#1B211A] focus:outline-none focus:ring-1 focus:ring-[#628141]/40"
+                          />
+                        </div>
+                      )}
                     </div>
                     <button
                       onClick={() => onRemoveFromCart(item.id)}
@@ -94,7 +150,7 @@ export function CartPanel({
                       </button>
                     </div>
                     <div className="font-bold text-[#628141]">
-                      ₱{(item.price * item.quantity).toFixed(2)}
+                      ₱{((item.customPrice ?? item.price) * item.quantity).toFixed(2)}
                     </div>
                   </div>
                 </div>

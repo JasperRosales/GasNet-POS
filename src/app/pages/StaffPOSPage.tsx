@@ -5,27 +5,32 @@ import { normalizeSupabaseError } from "../services/supabase/errors";
 import { POSHeader } from "../features/pos/components/POSHeader";
 import { POSTabs } from "../features/pos/components/POSTabs";
 import { TransactionDetails } from "../features/pos/components/TransactionDetails";
+import { ReturnPanel } from "../features/pos/components/ReturnPanel";
 import { ProductGrid } from "../features/pos/components/ProductGrid";
 import { CartPanel } from "../features/pos/components/CartPanel";
 import { TransactionList } from "../features/pos/components/TransactionList";
 import { ReceiptModal } from "../features/pos/components/ReceiptModal";
 import { PriceEditor } from "../features/pos/components/PriceEditor";
+import { TargetBanner } from "../features/pos/components/TargetBanner";
 import { useStaffSession } from "../features/pos/hooks/useStaffSession";
 import { useBranchProducts } from "../features/pos/hooks/useBranchProducts";
+import { useBranchTarget } from "../features/pos/hooks/useBranchTarget";
 import { useCart } from "../features/pos/hooks/useCart";
 import { useTransactions } from "../features/pos/hooks/useTransactions";
 import type { ActiveTab, Transaction } from "../features/pos";
-import { createSale, logoutStaff, updateBranchProductPrice } from "../features/pos";
+import { createSale, logoutStaff, updateBranchProductPrice, posService } from "../features/pos";
 
 export function StaffPOSPage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("pos");
   const [customerName, setCustomerName] = useState("");
-  const [transactionType, setTransactionType] = useState<"Instore" | "Commercial" | "Delivery">(
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [transactionType, setTransactionType] = useState<"Instore" | "Delivery">(
     "Instore"
   );
   const [receiptData, setReceiptData] = useState<Transaction | null>(null);
   const [checkoutPending, setCheckoutPending] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
+  const [targetRefreshIndex, setTargetRefreshIndex] = useState(0);
   const idempotencyRef = useRef<{ fingerprint: string; key: string } | null>(null);
   const navigate = useNavigate();
   const { staffName, branchId, status: staffStatus, error: staffError } = useStaffSession();
@@ -35,7 +40,11 @@ export function StaffPOSPage() {
     error: branchError,
     reload: reloadProducts,
   } = useBranchProducts(branchId);
-  const { cart, addToCart, updateQuantity, removeFromCart, clearCart, total, itemCount } =
+  const { target, loading: targetLoading, error: targetError } = useBranchTarget(
+    branchId,
+    targetRefreshIndex
+  );
+  const { cart, addToCart, updateQuantity, setCustomPrice, setTrackingNo, removeFromCart, clearCart, total, itemCount } =
     useCart();
   const {
     transactions,
@@ -69,8 +78,14 @@ export function StaffPOSPage() {
 
     const fingerprint = JSON.stringify({
       customer,
+      customerPhone: customerPhone.trim(),
       transactionType,
-      items: cart.map((item) => ({ productId: item.id, quantity: item.quantity })),
+      items: cart.map((item) => ({
+        productId: item.id,
+        quantity: item.quantity,
+        unitPrice: item.customPrice,
+        trackingNo: item.trackingNo,
+      })),
     });
     if (!idempotencyRef.current || idempotencyRef.current.fingerprint !== fingerprint) {
       idempotencyRef.current = {
@@ -92,14 +107,20 @@ export function StaffPOSPage() {
         items: cart.map((item) => ({
           productId: item.id,
           quantity: item.quantity,
+          unitPrice: item.customPrice,
+          trackingNo: item.trackingNo,
         })),
+        guestPhone: customerPhone.trim() || undefined,
       });
 
       addTransaction(transaction);
       setReceiptData(transaction);
       clearCart();
       setCustomerName("");
+      setCustomerPhone("");
       idempotencyRef.current = null;
+      setTargetRefreshIndex((current) => current + 1);
+      reloadProducts();
     } catch (checkoutError) {
       const normalized = normalizeSupabaseError(checkoutError);
       console.error("Unable to complete the sale.", normalized);
@@ -122,6 +143,21 @@ export function StaffPOSPage() {
 
   const closeReceipt = () => {
     setReceiptData(null);
+  };
+
+  const handleRecordReturn = async (input: {
+    trackingNo: string;
+    quantity: number;
+    reason?: string;
+  }) => {
+    const { error } = await posService.returns.recordReturn(input);
+    if (error) {
+      console.error("Failed to record return.", error);
+      return error.message || "Unable to record the return.";
+    }
+    reloadProducts();
+    reloadTransactions();
+    return null;
   };
 
   const handleSavePrice = async (productId: number, price: number) => {
@@ -147,6 +183,7 @@ export function StaffPOSPage() {
     <div className="min-h-screen bg-[#FFFDF1] p-4">
       <POSHeader staffName={staffName} onLogout={handleLogout} />
       <POSTabs activeTab={activeTab} onChange={setActiveTab} />
+      <TargetBanner target={target} loading={targetLoading} error={targetError} />
 
       {activeTab === "pos" ? (
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -155,6 +192,8 @@ export function StaffPOSPage() {
             <TransactionDetails
               customerName={customerName}
               onCustomerNameChange={setCustomerName}
+              customerPhone={customerPhone}
+              onCustomerPhoneChange={setCustomerPhone}
               transactionType={transactionType}
               onTransactionTypeChange={setTransactionType}
             />
@@ -171,6 +210,8 @@ export function StaffPOSPage() {
             itemCount={itemCount}
             total={total}
             onUpdateQuantity={updateQuantity}
+            onSetCustomPrice={setCustomPrice}
+            onSetTrackingNo={setTrackingNo}
             onRemoveFromCart={removeFromCart}
             onCheckout={handleCheckout}
             checkoutPending={checkoutPending}
@@ -183,6 +224,11 @@ export function StaffPOSPage() {
           loading={transactionsLoading}
           error={transactionsError}
           onRetry={reloadTransactions}
+        />
+      ) : activeTab === "return" ? (
+        <ReturnPanel
+          searchItems={(trackingNo) => posService.returns.searchItems(trackingNo)}
+          onRecordReturn={handleRecordReturn}
         />
       ) : (
         <PriceEditor

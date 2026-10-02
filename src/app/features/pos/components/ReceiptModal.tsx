@@ -45,6 +45,12 @@ export function ReceiptModal({ receiptData, onClose }: ReceiptModalProps) {
               <div className="text-[#628141]">Customer:</div>
               <div className="font-semibold text-[#1B211A]">{receiptData.customer}</div>
             </div>
+            {receiptData.customerPhone && (
+              <div>
+                <div className="text-[#628141]">Contact:</div>
+                <div className="font-semibold text-[#1B211A]">{receiptData.customerPhone}</div>
+              </div>
+            )}
             <div>
               <div className="text-[#628141]">Staff:</div>
               <div className="font-semibold text-[#1B211A]">{receiptData.staff}</div>
@@ -62,6 +68,7 @@ export function ReceiptModal({ receiptData, onClose }: ReceiptModalProps) {
                 <div key={item.id} className="flex justify-between text-sm">
                   <span className="text-[#1B211A]">
                     {item.name} x{item.quantity}
+                    {item.trackingNo ? ` · TN: ${item.trackingNo}` : ""}
                   </span>
                   <span className="font-semibold text-[#628141]">
                     ₱{(item.price * item.quantity).toFixed(2)}

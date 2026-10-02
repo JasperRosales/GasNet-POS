@@ -3,13 +3,17 @@ import { Users } from "lucide-react";
 interface TransactionDetailsProps {
   customerName: string;
   onCustomerNameChange: (value: string) => void;
+  customerPhone?: string;
+  onCustomerPhoneChange?: (value: string) => void;
   transactionType: "Instore" | "Commercial" | "Delivery";
-  onTransactionTypeChange: (value: "Instore" | "Commercial" | "Delivery") => void;
+  onTransactionTypeChange: (value: "Instore" | "Delivery") => void;
 }
 
 export function TransactionDetails({
   customerName,
   onCustomerNameChange,
+  customerPhone,
+  onCustomerPhoneChange,
   transactionType,
   onTransactionTypeChange,
 }: TransactionDetailsProps) {
@@ -39,6 +43,18 @@ export function TransactionDetails({
               boxShadow: "inset 0 2px 6px rgba(98, 129, 65, 0.1)",
             }}
           />
+          {onCustomerPhoneChange && (
+            <input
+              type="tel"
+              value={customerPhone ?? ""}
+              onChange={(e) => onCustomerPhoneChange(e.target.value)}
+              placeholder="Contact number (optional)"
+              className="mt-2 w-full px-4 py-2 rounded-xl bg-[#EBD5AB]/20 border border-[#628141]/20 text-[#1B211A] focus:outline-none focus:ring-2 focus:ring-[#628141]/50"
+              style={{
+                boxShadow: "inset 0 2px 6px rgba(98, 129, 65, 0.1)",
+              }}
+            />
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-[#628141] mb-2">Type</label>
@@ -61,16 +77,15 @@ export function TransactionDetails({
             >
               Instore
             </button>
-            <button onClick={() => onTransactionTypeChange("Delivery")}>Delivery</button>
             <button
-              onClick={() => onTransactionTypeChange("Commercial")}
+              onClick={() => onTransactionTypeChange("Delivery")}
               className={`flex-1 px-4 py-2 rounded-xl transition ${
-                transactionType === "Commercial"
+                transactionType === "Delivery"
                   ? "bg-gradient-to-r from-[#628141] to-[#8BAE66] text-[#FFFDF1]"
                   : "bg-[#EBD5AB]/20 text-[#628141]"
               }`}
               style={
-                transactionType === "Commercial"
+                transactionType === "Delivery"
                   ? {
                       boxShadow:
                         "0 4px 12px rgba(98, 129, 65, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2)",
@@ -78,7 +93,7 @@ export function TransactionDetails({
                   : { boxShadow: "inset 0 2px 6px rgba(98, 129, 65, 0.1)" }
               }
             >
-              Commercial
+              Delivery
             </button>
           </div>
         </div>

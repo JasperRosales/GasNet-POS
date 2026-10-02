@@ -1,4 +1,4 @@
-import { ShoppingCart, Receipt, Tag } from "lucide-react";
+import { ShoppingCart, Receipt, Tag, RotateCcw } from "lucide-react";
 import type { ActiveTab } from "../";
 
 interface POSTabsProps {
@@ -70,6 +70,24 @@ export function POSTabs({ activeTab, onChange }: POSTabsProps) {
         >
           <Tag size={20} />
           Pricing
+        </button>
+        <button
+          onClick={() => onChange("return")}
+          className={`px-6 py-3 rounded-2xl transition-all flex items-center gap-2 ${
+            activeTab === "return" ? "text-[#FFFDF1]" : "text-[#628141]"
+          }`}
+          style={
+            activeTab === "return"
+              ? {
+                  background: "linear-gradient(135deg, #628141 0%, #8BAE66 100%)",
+                  boxShadow:
+                    "0 4px 16px rgba(98, 129, 65, 0.3), inset 0 2px 6px rgba(255, 255, 255, 0.2)",
+                }
+              : {}
+          }
+        >
+          <RotateCcw size={20} />
+          Returns
         </button>
       </div>
     </div>

@@ -8,4 +8,5 @@ export {
   loginStaff,
   logoutStaff,
   updateBranchProductPrice,
+  posService,
 } from "./services/posService";

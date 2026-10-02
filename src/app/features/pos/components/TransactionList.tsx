@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Receipt } from "lucide-react";
 import type { Transaction } from "../types";
 
@@ -14,6 +15,14 @@ export function TransactionList({
   error = "",
   onRetry,
 }: TransactionListProps) {
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+  const totalPages = Math.max(1, Math.ceil(transactions.length / pageSize));
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+  const visibleTransactions = transactions.slice((page - 1) * pageSize, page * pageSize);
+
   return (
     <div className="max-w-7xl mx-auto">
       <div
@@ -60,13 +69,14 @@ export function TransactionList({
                     <th className="px-4 py-3 text-left">Transaction ID</th>
                     <th className="px-4 py-3 text-left">Date</th>
                     <th className="px-4 py-3 text-left">Customer</th>
+                    <th className="px-4 py-3 text-left">Contact</th>
                     <th className="px-4 py-3 text-left">Type</th>
                     <th className="px-4 py-3 text-left">Items</th>
                     <th className="px-4 py-3 text-right">Total</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {transactions.map((txn, index) => (
+                  {visibleTransactions.map((txn, index) => (
                     <tr
                       key={txn.transactionId}
                       className={`border-b border-[#628141]/10 ${
@@ -78,6 +88,9 @@ export function TransactionList({
                       </td>
                       <td className="px-4 py-3 text-[#1B211A] text-sm">{txn.date}</td>
                       <td className="px-4 py-3 text-[#1B211A]">{txn.customer}</td>
+                      <td className="px-4 py-3 text-[#1B211A] text-sm">
+                        {txn.customerPhone || "—"}
+                      </td>
                       <td className="px-4 py-3">
                         <span
                           className="px-3 py-1 rounded-full text-sm text-[#628141]"
@@ -92,6 +105,11 @@ export function TransactionList({
                         {txn.items.map((item, i) => (
                           <div key={`${txn.transactionId}-${item.id}-${i}`}>
                             {item.name} x{item.quantity}
+                            {item.trackingNo ? (
+                              <span className="ml-1 text-xs text-[#628141]">
+                                · TN: {item.trackingNo}
+                              </span>
+                            ) : null}
                           </div>
                         ))}
                       </td>
@@ -105,6 +123,29 @@ export function TransactionList({
             </div>
           )}
         </div>
+        {!loading && !error && transactions.length > 0 && (
+          <div className="flex items-center justify-between border-t border-[#EBD5AB]/40 px-6 py-4">
+            <span className="text-xs text-[#628141]">
+              Page {page} of {totalPages} · {transactions.length} transaction(s)
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPage((value) => Math.max(1, value - 1))}
+                disabled={page === 1}
+                className="rounded-lg border border-[#628141]/30 px-3 py-1.5 text-xs text-[#628141] disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+                disabled={page === totalPages}
+                className="rounded-lg border border-[#628141]/30 px-3 py-1.5 text-xs text-[#628141] disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
